@@ -57,6 +57,9 @@ impl MortgagePool {
     /// Opens a new loan against a property. Borrower must authorize. Enforces max 70% LTV.
     pub fn open_loan(env: Env, borrower: Address, prop_id: u64, amount: i128) -> u64 {
         borrower.require_auth();
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
 
         let property_reg: Address = env
             .storage()
@@ -138,11 +141,17 @@ impl MortgagePool {
     /// Repays `amount` of a loan. Only callable by the borrower.
     pub fn repay(env: Env, borrower: Address, loan_id: u64, amount: i128) {
         borrower.require_auth();
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
         let mut loan: LoanData = env
             .storage()
             .instance()
             .get(&DataKey::Loan(loan_id))
             .unwrap_or_else(|| panic!("loan not found"));
+        if loan.borrower != borrower {
+            panic!("only loan borrower can repay");
+        }
         if loan.status != LoanStatus::Active {
             panic!("loan is not active");
         }
@@ -225,6 +234,9 @@ impl MortgagePool {
     /// Deposits tokens to the liquidity pool. Callable by any LP.
     pub fn deposit_liquidity(env: Env, lp: Address, amount: i128) {
         lp.require_auth();
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
 
         let token: Address = env
             .storage()
@@ -258,6 +270,9 @@ impl MortgagePool {
     /// Withdraws tokens from the liquidity pool. Callable by the LP.
     pub fn withdraw_liquidity(env: Env, lp: Address, amount: i128) {
         lp.require_auth();
+        if amount <= 0 {
+            panic!("amount must be positive");
+        }
 
         let key = DataKey::Liquidity(lp.clone());
         let balance: i128 = env.storage().instance().get(&key).unwrap_or(0);
@@ -290,6 +305,33 @@ impl MortgagePool {
             &Symbol::new(&env, "transfer"),
             Vec::from_array(&env, [vault.to_val(), lp.to_val(), amount.into_val(&env)]),
         );
+
+        env.events()
+            .publish((Symbol::new(&env, "LiquidityWithdrawn"),), (lp, amount));
+    }
+
+    /// Returns the LoanData for a given loan ID.
+    pub fn get_loan(env: Env, loan_id: u64) -> LoanData {
+        env.storage()
+            .instance()
+            .get(&DataKey::Loan(loan_id))
+            .unwrap_or_else(|| panic!("loan not found"))
+    }
+
+    /// Returns the liquidity balance of an LP in the pool.
+    pub fn get_lp_balance(env: Env, lp: Address) -> i128 {
+        env.storage()
+            .instance()
+            .get(&DataKey::Liquidity(lp))
+            .unwrap_or(0)
+    }
+
+    /// Returns the total available liquidity in the pool.
+    pub fn get_total_liquidity(env: Env) -> i128 {
+        env.storage()
+            .instance()
+            .get(&DataKey::TotalLiquidity)
+            .unwrap_or(0)
     }
 
     /// Returns the HealthFactor for a loan, indicating whether it's at risk of liquidation.
@@ -460,5 +502,36 @@ mod test {
         assert!(health.ratio > 8000);
 
         pool.liquidate(&admin, &loan_id);
+        let loan = pool.get_loan(&loan_id);
+        assert_eq!(loan.status, LoanStatus::Liquidated);
+    }
+
+    #[test]
+    fn test_liquidity_queries_and_withdrawal() {
+        let (env, admin, _owner, pool, token, _, _) = setup();
+        let sac = soroban_sdk::token::StellarAssetClient::new(&env, &token);
+        sac.mint(&admin, &100_000i128);
+
+        pool.deposit_liquidity(&admin, &60_000i128);
+        assert_eq!(pool.get_lp_balance(&admin), 60_000);
+        assert_eq!(pool.get_total_liquidity(), 60_000);
+
+        pool.withdraw_liquidity(&admin, &20_000i128);
+        assert_eq!(pool.get_lp_balance(&admin), 40_000);
+        assert_eq!(pool.get_total_liquidity(), 40_000);
+    }
+
+    #[test]
+    #[should_panic(expected = "only loan borrower can repay")]
+    fn test_repay_by_non_borrower_panics() {
+        let (env, admin, owner, pool, token, _, _) = setup();
+        let sac = soroban_sdk::token::StellarAssetClient::new(&env, &token);
+        sac.mint(&admin, &100_000i128);
+        pool.deposit_liquidity(&admin, &50_000i128);
+
+        let loan_id = pool.open_loan(&owner, &1u64, &20_000i128);
+        let stranger = Address::generate(&env);
+        sac.mint(&stranger, &20_000i128);
+        pool.repay(&stranger, &loan_id, &10_000i128);
     }
 }

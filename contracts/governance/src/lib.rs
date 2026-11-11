@@ -256,6 +256,35 @@ impl Governance {
             .get(&DataKey::Proposal(proposal_id))
             .unwrap_or_else(|| panic!("proposal not found"))
     }
+
+    /// Returns the current quorum threshold.
+    pub fn get_quorum(env: Env) -> u128 {
+        env.storage().instance().get(&DataKey::Quorum).unwrap_or(0)
+    }
+
+    /// Returns the list of tracked property IDs for voting power calculation.
+    pub fn get_tracked_properties(env: Env) -> Vec<u64> {
+        env.storage()
+            .instance()
+            .get(&DataKey::TrackedProperties)
+            .unwrap_or(Vec::new(&env))
+    }
+
+    /// Checks whether a voter has already voted on a given proposal.
+    pub fn has_voted(env: Env, proposal_id: u64, voter: Address) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::HasVoted(proposal_id, voter))
+            .unwrap_or(false)
+    }
+
+    /// Returns the total number of proposals created.
+    pub fn proposal_count(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .get(&DataKey::ProposalCounter)
+            .unwrap_or(0)
+    }
 }
 
 #[cfg(test)]
@@ -741,6 +770,8 @@ mod test {
 
         client.add_tracked_property(&1u64);
         client.add_tracked_property(&2u64);
+        let tracked = client.get_tracked_properties();
+        assert_eq!(tracked.len(), 2);
     }
 
     #[test]
@@ -756,5 +787,7 @@ mod test {
         client.initialize(&admin, &vault);
 
         client.set_quorum(&500u128);
+        assert_eq!(client.get_quorum(), 500u128);
+        assert_eq!(client.proposal_count(), 0);
     }
 }

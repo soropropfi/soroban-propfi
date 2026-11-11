@@ -201,11 +201,14 @@ impl PropertyRegistry {
             .get(&DataKey::Property(prop_id))
             .unwrap_or_else(|| panic!("property not found"));
 
-        property.status = status;
+        property.status = status.clone();
         property.updated_at = env.ledger().timestamp();
         env.storage()
             .instance()
             .set(&DataKey::Property(prop_id), &property);
+
+        env.events()
+            .publish((Symbol::new(&env, "StatusUpdated"), prop_id), status);
     }
 
     /// Returns the jurisdiction symbol for a property.
@@ -214,6 +217,14 @@ impl PropertyRegistry {
             .instance()
             .get(&DataKey::Jurisdiction(prop_id))
             .unwrap_or_else(|| panic!("property not found"))
+    }
+
+    /// Returns the total number of registered properties.
+    pub fn property_count(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .get(&DataKey::PropertyCounter)
+            .unwrap_or(0)
     }
 }
 
@@ -326,6 +337,7 @@ mod test {
         assert_eq!(id1, 1);
         assert_eq!(id2, 2);
         assert_eq!(id3, 3);
+        assert_eq!(client.property_count(), 3);
 
         assert_eq!(client.get_property(&id1).valuation, 100_000);
         assert_eq!(client.get_property(&id2).valuation, 200_000);

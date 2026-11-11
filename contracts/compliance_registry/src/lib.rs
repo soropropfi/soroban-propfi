@@ -156,6 +156,18 @@ impl ComplianceRegistry {
             None => 0,
         }
     }
+
+    /// Returns the full attestation record for `user`, if one exists.
+    pub fn get_attestation(env: Env, user: Address) -> Option<Attestation> {
+        env.storage().instance().get(&DataKey::Attestation(user))
+    }
+
+    /// Returns the compliance rules configured for `jurisdiction`, if any.
+    pub fn get_jurisdiction_rules(env: Env, jurisdiction: Symbol) -> Option<JurisdictionRules> {
+        env.storage()
+            .instance()
+            .get(&DataKey::JurisdictionRules(jurisdiction))
+    }
 }
 
 #[cfg(test)]
@@ -280,6 +292,11 @@ mod test {
         client.attest(&user, &proof, &jurisdiction, &1u32);
 
         assert!(!client.is_compliant(&user, &jurisdiction));
+
+        let stored_rules = client.get_jurisdiction_rules(&jurisdiction).unwrap();
+        assert_eq!(stored_rules, rules);
+        let stored_attestation = client.get_attestation(&user).unwrap();
+        assert!(stored_attestation.active);
     }
 
     #[test]

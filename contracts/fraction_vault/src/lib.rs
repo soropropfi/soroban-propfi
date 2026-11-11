@@ -21,6 +21,7 @@ pub enum DataKey {
     Balance(Address, u64),
     HolderCount(u64),
     IsHolder(Address, u64),
+    SoldSupply(u64),
 }
 
 #[contract]
@@ -87,6 +88,10 @@ impl FractionVault {
             .instance()
             .set(&DataKey::HolderCount(prop_id), &0u32);
 
+        env.storage()
+            .instance()
+            .set(&DataKey::SoldSupply(prop_id), &0u128);
+
         env.events().publish(
             (Symbol::new(&env, "Fractionalized"), prop_id),
             (total_supply, price),
@@ -107,6 +112,29 @@ impl FractionVault {
             .instance()
             .get(&DataKey::HolderCount(prop_id))
             .unwrap_or(0)
+    }
+
+    /// Returns the number of fractions currently sold/circulating for a property.
+    pub fn sold_supply(env: Env, prop_id: u64) -> u128 {
+        env.storage()
+            .instance()
+            .get(&DataKey::SoldSupply(prop_id))
+            .unwrap_or(0)
+    }
+
+    /// Returns the remaining available fractions that can be purchased for a property.
+    pub fn available_fractions(env: Env, prop_id: u64) -> u128 {
+        let info: FractionInfo = env
+            .storage()
+            .instance()
+            .get(&DataKey::FractionInfo(prop_id))
+            .unwrap_or_else(|| panic!("property not fractionalized"));
+        let sold: u128 = env
+            .storage()
+            .instance()
+            .get(&DataKey::SoldSupply(prop_id))
+            .unwrap_or(0);
+        info.total_supply.saturating_sub(sold)
     }
 
     /// Returns the FractionInfo struct for a property.
@@ -170,6 +198,13 @@ impl FractionVault {
             .get(&DataKey::FractionInfo(prop_id))
             .unwrap_or_else(|| panic!("property not fractionalized"));
 
+        let sold_key = DataKey::SoldSupply(prop_id);
+        let sold: u128 = env.storage().instance().get(&sold_key).unwrap_or(0);
+        let new_sold = sold.checked_add(amount).unwrap();
+        if new_sold > info.total_supply {
+            panic!("exceeds total supply");
+        }
+
         let key = DataKey::Balance(buyer.clone(), prop_id);
         let balance: u128 = env.storage().instance().get(&key).unwrap_or(0);
 
@@ -201,6 +236,7 @@ impl FractionVault {
         let balance: u128 = env.storage().instance().get(&key).unwrap_or(0);
         let new_balance = balance.checked_add(amount).unwrap();
         env.storage().instance().set(&key, &new_balance);
+        env.storage().instance().set(&sold_key, &new_sold);
 
         if balance == 0 {
             let holder_key = DataKey::IsHolder(buyer.clone(), prop_id);
@@ -261,6 +297,12 @@ impl FractionVault {
 
         let new_balance = balance.checked_sub(amount).unwrap();
         env.storage().instance().set(&key, &new_balance);
+
+        let sold_key = DataKey::SoldSupply(prop_id);
+        let sold: u128 = env.storage().instance().get(&sold_key).unwrap_or(0);
+        env.storage()
+            .instance()
+            .set(&sold_key, &sold.saturating_sub(amount));
 
         if new_balance == 0 {
             let holder_key = DataKey::IsHolder(seller.clone(), prop_id);
@@ -860,5 +902,36 @@ mod test {
         vault.buy_fraction(&buyer, &prop_id, &3u128);
         assert_eq!(vault.get_balance(&buyer, &prop_id), 8);
         assert_eq!(vault.total_holders(&prop_id), 1);
+        assert_eq!(vault.sold_supply(&prop_id), 8);
+        assert_eq!(vault.available_fractions(&prop_id), 992);
+    }
+
+    #[test]
+    #[should_panic(expected = "exceeds total supply")]
+    fn test_buy_fraction_exceeds_total_supply() {
+        let (env, admin, owner) = setup_base();
+        let prop_id = 1u64;
+
+        let token = setup_token(&env, &admin);
+        let sac = soroban_sdk::token::StellarAssetClient::new(&env, &token);
+
+        let (prop_id_reg, prop_reg_id, compliance_id) = register_property(&env, &admin, &owner);
+        assert_eq!(prop_id_reg, prop_id);
+
+        let vault = setup_vault(&env, &admin);
+        vault.fractionalize(
+            &prop_id,
+            &100u128,
+            &100i128,
+            &token,
+            &prop_reg_id,
+            &compliance_id,
+        );
+
+        let buyer = Address::generate(&env);
+        sac.mint(&buyer, &1_000_000i128);
+        attest_buyer(&env, &compliance_id, &buyer);
+
+        vault.buy_fraction(&buyer, &prop_id, &101u128);
     }
 }
