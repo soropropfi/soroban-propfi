@@ -46,5 +46,14 @@ export async function handlePropertyEvent(
       });
       break;
     }
+    case 'status_updated': {
+      const propertyId = BigInt(topics[0]);
+      const status = String(data);
+      await prisma.property.update({
+        where: { id: propertyId },
+        data: { status, updatedAt: BigInt(Math.floor(Date.now() / 1000)) },
+      });
+      break;
+    }
   }
 }

@@ -53,6 +53,8 @@ export function registerAllHandlers(contractIds: Record<string, string>): void {
       handlePropertyEvent('valuation_updated', data, topics, ledger),
     OwnershipTransferred: (data, topics, ledger) =>
       handlePropertyEvent('ownership_transferred', data, topics, ledger),
+    StatusUpdated: (data, topics, ledger) =>
+      handlePropertyEvent('status_updated', data, topics, ledger),
   });
 
   registerContract(contractIds.fractionVault, {
@@ -82,6 +84,8 @@ export function registerAllHandlers(contractIds: Record<string, string>): void {
       handleMortgageEvent('liquidated', data, topics, ledger),
     LiquidityDeposited: (data, topics, ledger) =>
       handleMortgageEvent('liquidity_deposited', data, topics, ledger),
+    LiquidityWithdrawn: (data, topics, ledger) =>
+      handleMortgageEvent('liquidity_withdrawn', data, topics, ledger),
   });
 
   registerContract(contractIds.complianceRegistry, {

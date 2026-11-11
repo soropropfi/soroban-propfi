@@ -7,7 +7,7 @@
     "build": "tsc",
     "lint": "eslint .",
     "fmt": "prettier --write .",
-    "test": "vitest run",
+    "test": "npm run build && node --test test/indexer.test.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",

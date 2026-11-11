@@ -94,6 +94,31 @@ model Proposal {
   @@map("proposal")
 }
 
+model OraclePrice {
+  id          BigInt @id @default(autoincrement())
+  asset       String
+  price       BigInt
+  oracleCount Int    @map("oracle_count")
+  timestamp   BigInt
+  ledgerSeq   Int    @map("ledger_seq")
+
+  @@map("oracle_price")
+}
+
+model Payment {
+  id        BigInt @id @default(autoincrement())
+  from      String
+  to        String
+  srcAsset  String @map("src_asset")
+  srcAmount BigInt @map("src_amount")
+  dstAsset  String @map("dst_asset")
+  dstAmount BigInt @map("dst_amount")
+  timestamp BigInt
+  ledgerSeq Int    @map("ledger_seq")
+
+  @@map("payment")
+}
+
 model IndexerState {
   id             String   @id
   lastLedger     Int      @map("last_ledger")
