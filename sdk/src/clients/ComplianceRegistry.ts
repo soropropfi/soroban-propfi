@@ -1,10 +1,10 @@
 import { nativeToScVal } from '@stellar/stellar-sdk';
-import { SorobanClient, type SorobanSigner } from './base';
-import type { JurisdictionRules, TxOptions } from '../types';
+import { SorobanClient, toBytesBuffer, type SorobanSigner } from './base';
+import type { Attestation, JurisdictionRules, TxOptions } from '../types';
 
 export class ComplianceRegistryClient extends SorobanClient {
-  constructor(rpcUrl: string, contractId: string) {
-    super(rpcUrl, contractId);
+  constructor(rpcUrl: string, contractId: string, networkPassphrase?: string) {
+    super(rpcUrl, contractId, networkPassphrase);
   }
 
   async initialize(admin: string, signer: SorobanSigner, options?: TxOptions): Promise<string> {
@@ -13,7 +13,7 @@ export class ComplianceRegistryClient extends SorobanClient {
 
   async attest(
     user: string,
-    proofHash: string,
+    proofHash: string | Uint8Array,
     jurisdiction: string,
     durationDays: number,
     signer: SorobanSigner,
@@ -23,9 +23,9 @@ export class ComplianceRegistryClient extends SorobanClient {
       'attest',
       [
         nativeToScVal(user, { type: 'address' }),
-        nativeToScVal(proofHash, { type: 'bytes' }),
+        nativeToScVal(toBytesBuffer(proofHash), { type: 'bytes' }),
         nativeToScVal(jurisdiction, { type: 'symbol' }),
-        nativeToScVal(durationDays, { type: 'u64' }),
+        nativeToScVal(durationDays, { type: 'u32' }),
       ],
       signer,
       options,
@@ -69,5 +69,19 @@ export class ComplianceRegistryClient extends SorobanClient {
       nativeToScVal(user, { type: 'address' }),
     ]);
     return BigInt(result as number);
+  }
+
+  async getAttestation(user: string): Promise<Attestation | null> {
+    const result = await this.simulateView('get_attestation', [
+      nativeToScVal(user, { type: 'address' }),
+    ]);
+    return (result as Attestation) ?? null;
+  }
+
+  async getJurisdictionRules(jurisdiction: string): Promise<JurisdictionRules | null> {
+    const result = await this.simulateView('get_jurisdiction_rules', [
+      nativeToScVal(jurisdiction, { type: 'symbol' }),
+    ]);
+    return (result as JurisdictionRules) ?? null;
   }
 }

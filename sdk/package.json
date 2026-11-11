@@ -12,13 +12,14 @@
     "clean": "rm -rf dist",
     "lint": "eslint .",
     "fmt": "prettier --write .",
-    "test": "vitest run",
+    "test": "npm run build && node --test test/sdk.test.js",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^12.1.0"
   },
   "devDependencies": {
+    "@types/node": "^20.14.0",
     "typescript": "^5.5.0"
   },
   "license": "MIT"

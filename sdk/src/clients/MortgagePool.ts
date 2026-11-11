@@ -1,10 +1,10 @@
 import { nativeToScVal } from '@stellar/stellar-sdk';
 import { SorobanClient, type SorobanSigner } from './base';
-import type { HealthFactor, TxOptions } from '../types';
+import type { HealthFactor, LoanData, TxOptions } from '../types';
 
 export class MortgagePoolClient extends SorobanClient {
-  constructor(rpcUrl: string, contractId: string) {
-    super(rpcUrl, contractId);
+  constructor(rpcUrl: string, contractId: string, networkPassphrase?: string) {
+    super(rpcUrl, contractId, networkPassphrase);
   }
 
   async initialize(
@@ -122,5 +122,24 @@ export class MortgagePoolClient extends SorobanClient {
       nativeToScVal(loanId, { type: 'u64' }),
     ]);
     return result as HealthFactor;
+  }
+
+  async getLoan(loanId: number): Promise<LoanData> {
+    const result = await this.simulateView('get_loan', [
+      nativeToScVal(loanId, { type: 'u64' }),
+    ]);
+    return result as LoanData;
+  }
+
+  async getLpBalance(lp: string): Promise<bigint> {
+    const result = await this.simulateView('get_lp_balance', [
+      nativeToScVal(lp, { type: 'address' }),
+    ]);
+    return BigInt(result as number);
+  }
+
+  async getTotalLiquidity(): Promise<bigint> {
+    const result = await this.simulateView('get_total_liquidity', []);
+    return BigInt(result as number);
   }
 }

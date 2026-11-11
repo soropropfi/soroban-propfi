@@ -9,11 +9,31 @@ import {
   xdr,
   Transaction,
 } from '@stellar/stellar-sdk';
+import { Buffer } from 'buffer';
 import type { TxOptions } from '../types';
 
 export interface SorobanSigner {
   signTransaction(txXdr: string): Promise<string>;
   getPublicKey(): Promise<string>;
+}
+
+export function toBytesBuffer(val: string | Uint8Array): Buffer {
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(val)) {
+    return val;
+  }
+  if (val instanceof Uint8Array) {
+    return Buffer.from(val);
+  }
+  if (typeof val === 'string') {
+    if (val.startsWith('0x')) {
+      return Buffer.from(val.slice(2), 'hex');
+    }
+    if (/^[0-9a-fA-F]+$/.test(val) && val.length % 2 === 0) {
+      return Buffer.from(val, 'hex');
+    }
+    return Buffer.from(val, 'utf-8');
+  }
+  return Buffer.from(String(val));
 }
 
 export class SorobanClient {

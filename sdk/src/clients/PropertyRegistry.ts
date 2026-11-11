@@ -1,10 +1,10 @@
 import { nativeToScVal } from '@stellar/stellar-sdk';
-import { SorobanClient, type SorobanSigner } from './base';
+import { SorobanClient, toBytesBuffer, type SorobanSigner } from './base';
 import type { PropertyData, PropertyStatus, TxOptions } from '../types';
 
 export class PropertyRegistryClient extends SorobanClient {
-  constructor(rpcUrl: string, contractId: string) {
-    super(rpcUrl, contractId);
+  constructor(rpcUrl: string, contractId: string, networkPassphrase?: string) {
+    super(rpcUrl, contractId, networkPassphrase);
   }
 
   async initialize(admin: string, signer: SorobanSigner, options?: TxOptions): Promise<string> {
@@ -14,7 +14,7 @@ export class PropertyRegistryClient extends SorobanClient {
   async registerProperty(
     owner: string,
     valuation: bigint,
-    docHash: string,
+    docHash: string | Uint8Array,
     jurisdiction: string,
     signer: SorobanSigner,
     options?: TxOptions,
@@ -24,7 +24,7 @@ export class PropertyRegistryClient extends SorobanClient {
       [
         nativeToScVal(owner, { type: 'address' }),
         nativeToScVal(valuation, { type: 'i128' }),
-        nativeToScVal(docHash, { type: 'bytes' }),
+        nativeToScVal(toBytesBuffer(docHash), { type: 'bytes' }),
         nativeToScVal(jurisdiction, { type: 'symbol' }),
       ],
       signer,
@@ -101,5 +101,10 @@ export class PropertyRegistryClient extends SorobanClient {
       nativeToScVal(propId, { type: 'u64' }),
     ]);
     return result as string;
+  }
+
+  async propertyCount(): Promise<number> {
+    const result = await this.simulateView('property_count', []);
+    return Number(result);
   }
 }

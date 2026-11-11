@@ -3,8 +3,8 @@ import { SorobanClient, type SorobanSigner } from './base';
 import type { FractionInfo, TxOptions } from '../types';
 
 export class FractionVaultClient extends SorobanClient {
-  constructor(rpcUrl: string, contractId: string) {
-    super(rpcUrl, contractId);
+  constructor(rpcUrl: string, contractId: string, networkPassphrase?: string) {
+    super(rpcUrl, contractId, networkPassphrase);
   }
 
   async initialize(admin: string, signer: SorobanSigner, options?: TxOptions): Promise<string> {
@@ -89,6 +89,20 @@ export class FractionVaultClient extends SorobanClient {
       nativeToScVal(propId, { type: 'u64' }),
     ]);
     return result as number;
+  }
+
+  async soldSupply(propId: number): Promise<bigint> {
+    const result = await this.simulateView('sold_supply', [
+      nativeToScVal(propId, { type: 'u64' }),
+    ]);
+    return BigInt(result as number);
+  }
+
+  async availableFractions(propId: number): Promise<bigint> {
+    const result = await this.simulateView('available_fractions', [
+      nativeToScVal(propId, { type: 'u64' }),
+    ]);
+    return BigInt(result as number);
   }
 
   async getFractionInfo(propId: number): Promise<FractionInfo> {

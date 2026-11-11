@@ -27,6 +27,11 @@ export interface PriceData {
   oracle_count: number;
 }
 
+export interface OracleInfo {
+  weight: number;
+  active: boolean;
+}
+
 export interface LoanData {
   prop_id: number;
   borrower: string;
