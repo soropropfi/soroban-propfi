@@ -467,9 +467,9 @@ cd frontend && npm install && npm run dev
 ### Unit tests (per contract)
 
 ```bash
-cargo test -p property_registry
-cargo test -p fraction_vault
-cargo test -p mortgage_pool
+cargo test -p propfi-property-registry
+cargo test -p propfi-fraction-vault
+cargo test -p propfi-mortgage-pool
 # ... etc
 ```
 

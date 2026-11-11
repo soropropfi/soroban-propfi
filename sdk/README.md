@@ -100,10 +100,14 @@ console.log({ property, fractionInfo, balance, health });
 
 | Client | Contract | Key Methods |
 |--------|----------|-------------|
-| `ComplianceRegistryClient` | KYC/AML attestation | `attest`, `isCompliant`, `revoke` |
-| `PropertyRegistryClient` | Property tokenization | `registerProperty`, `getProperty`, `transferOwnership` |
-| `FractionVaultClient` | Fractional ownership | `buyFraction`, `sellFraction`, `getBalance` |
-| `MortgagePoolClient` | On-chain mortgages | `openLoan`, `repay`, `loanHealth` |
+| `ComplianceRegistryClient` | KYC/AML attestation | `attest`, `isCompliant`, `revoke`, `getAttestation`, `getJurisdictionRules` |
+| `PropertyRegistryClient` | Property tokenization | `registerProperty`, `getProperty`, `transferOwnership`, `updateValuation`, `propertyCount` |
+| `FractionVaultClient` | Fractional ownership | `fractionalize`, `buyFraction`, `sellFraction`, `getBalance`, `soldSupply`, `availableFractions` |
+| `MortgagePoolClient` | On-chain mortgages | `openLoan`, `repay`, `loanHealth`, `depositLiquidity`, `withdrawLiquidity`, `getLoan`, `getTotalLiquidity` |
+| `OracleAdapterClient` | Price feed aggregation | `addOracle`, `submitPrice`, `getPrice`, `twap`, `getOracleInfo` |
+| `RentDistributorClient` | Yield distribution | `depositRent`, `distribute`, `claim`, `pendingYield`, `setSchedule` |
+| `PaymentBridgeClient` | Cross-border remittance | `deposit`, `withdraw`, `send`, `batchSend`, `estimatePath`, `registerAnchor` |
+| `GovernanceClient` | On-chain voting | `propose`, `vote`, `execute`, `votingPower`, `getProposal`, `hasVoted` |
 
 ## Types
 
