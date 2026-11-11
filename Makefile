@@ -30,8 +30,7 @@ setup:
 
 # Build contracts
 build:
-	# Build only the contracts (not integration tests) for wasm
-	cargo build --target wasm32-unknown-unknown --release
+	cargo build --workspace --target wasm32-unknown-unknown --release --exclude propfi-integration-tests
 
 build-sdk:
 	cd sdk && npm run build

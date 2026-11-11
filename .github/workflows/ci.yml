@@ -57,7 +57,7 @@ jobs:
       - run: cargo fmt --all --check
 
   sdk:
-    name: SDK Build
+    name: SDK Build & Test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -70,10 +70,10 @@ jobs:
           cache: npm
           cache-dependency-path: sdk/package-lock.json
       - run: npm ci
-      - run: npm run build
+      - run: npm test
 
   indexer:
-    name: Indexer Build
+    name: Indexer Build & Test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -86,4 +86,26 @@ jobs:
           cache: npm
           cache-dependency-path: indexer/package-lock.json
       - run: npm ci
+      - run: npm test
+
+  frontend:
+    name: Frontend Build & Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build SDK dependency
+        run: |
+          cd ../sdk
+          npm ci
+          npm run build
+      - run: npm ci
+      - run: npm run lint
       - run: npm run build
