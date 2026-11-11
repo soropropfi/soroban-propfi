@@ -5,8 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Soroban](https://img.shields.io/badge/Soroban-v21.x-blueviolet)](https://soroban.stellar.org)
 [![Stellar](https://img.shields.io/badge/Network-Stellar-black)](https://stellar.org)
-[![Build](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-91%25-green)]()
+[![CI](https://github.com/soropropfi/soroban-propfi/actions/workflows/ci.yml/badge.svg)](https://github.com/soropropfi/soroban-propfi/actions/workflows/ci.yml)
 
 ---
 
@@ -122,6 +121,7 @@ pub fn transfer_ownership(env: Env, prop_id: u64, to: Address, compliance_contra
 pub fn get_property(env: Env, prop_id: u64) -> PropertyData
 pub fn set_status(env: Env, prop_id: u64, status: PropertyStatus)
 pub fn get_property_jurisdiction(env: Env, prop_id: u64) -> Symbol
+pub fn property_count(env: Env) -> u64
 ```
 
 **Events:** `PropertyRegistered` · `ValuationUpdated` · `OwnershipTransferred`
@@ -139,6 +139,8 @@ pub fn buy_fraction(env: Env, buyer: Address, prop_id: u64, amount: u128)
 pub fn sell_fraction(env: Env, seller: Address, prop_id: u64, amount: u128, min_price: i128)
 pub fn get_balance(env: Env, investor: Address, prop_id: u64) -> u128
 pub fn total_holders(env: Env, prop_id: u64) -> u32
+pub fn sold_supply(env: Env, prop_id: u64) -> u128
+pub fn available_fractions(env: Env, prop_id: u64) -> u128
 pub fn get_fraction_info(env: Env, prop_id: u64) -> (u128, i128, Address, Address, Address)
 pub fn set_rent_distributor(env: Env, distributor: Address)
 ```
@@ -177,6 +179,9 @@ pub fn liquidate(env: Env, liquidator: Address, loan_id: u64)
 pub fn deposit_liquidity(env: Env, lp: Address, amount: i128)
 pub fn withdraw_liquidity(env: Env, lp: Address, amount: i128)
 pub fn loan_health(env: Env, loan_id: u64) -> HealthFactor
+pub fn get_loan(env: Env, loan_id: u64) -> LoanData
+pub fn get_lp_balance(env: Env, lp: Address) -> i128
+pub fn get_total_liquidity(env: Env) -> i128
 ```
 
 > Maximum LTV: **70%**. Liquidation threshold: **80%**. Interest accrues per ledger.
@@ -230,6 +235,8 @@ pub fn is_compliant(env: Env, user: Address, jurisdiction: Symbol) -> bool
 pub fn revoke(env: Env, user: Address)
 pub fn set_jurisdiction_rules(env: Env, jurisdiction: Symbol, rules: JurisdictionRules)
 pub fn attestation_expiry(env: Env, user: Address) -> u64
+pub fn get_attestation(env: Env, user: Address) -> Option<Attestation>
+pub fn get_jurisdiction_rules(env: Env, jurisdiction: Symbol) -> Option<JurisdictionRules>
 ```
 
 **Events:** `Attested` · `Revoked` · `RulesUpdated`
@@ -249,6 +256,10 @@ pub fn vote(env: Env, voter: Address, proposal_id: u64, support: bool)
 pub fn execute(env: Env, proposal_id: u64)
 pub fn voting_power(env: Env, user: Address) -> u128
 pub fn get_proposal(env: Env, proposal_id: u64) -> ProposalData
+pub fn get_quorum(env: Env) -> u128
+pub fn get_tracked_properties(env: Env) -> Vec<u64>
+pub fn has_voted(env: Env, proposal_id: u64, voter: Address) -> bool
+pub fn proposal_count(env: Env) -> u64
 ```
 
 **Timelock:** 48 hours. **Quorum:** 10% of total fraction supply.
@@ -346,11 +357,16 @@ propfi/
 │   ├── package.json
 │   └── tsconfig.json
 │
-├── indexer/                          # Horizon event indexer
+├── indexer/                          # Horizon & Soroban event indexer
+│   ├── prisma/
+│   │   └── schema.prisma             # Database schema
 │   ├── src/
-│   │   ├── handlers/                 # Per-contract event handlers
-│   │   ├── db/                       # Prisma schema + migrations
+│   │   ├── events/                   # Contract event handlers
+│   │   ├── config.ts
+│   │   ├── db.ts
+│   │   ├── parse.ts
 │   │   └── index.ts
+│   ├── test/                         # Unit tests
 │   └── package.json
 │
 ├── frontend/                         # Next.js dApp
@@ -363,6 +379,7 @@ propfi/
 │   │   │   └── ui/               # shadcn/ui components
 │   │   ├── lib/                  # SDK integration, utilities
 │   │   └── styles/
+│   ├── .eslintrc.json
 │   └── package.json
 │
 ├── scripts/                          # Deployment & setup scripts
@@ -377,6 +394,7 @@ propfi/
 │
 ├── Cargo.toml                        # Workspace manifest
 ├── Cargo.lock
+├── Makefile                          # Unified build & test commands
 ├── docker-compose.yml
 └── README.md
 ```
@@ -388,15 +406,15 @@ propfi/
 ### Prerequisites
 
 - [Rust](https://rustup.rs/) (stable, 1.75+)
-- [soroban-cli](https://soroban.stellar.org/docs/getting-started/setup) v21.x
+- [stellar-cli / soroban-cli](https://developers.stellar.org/docs/tools/developer-tools/cli/install)
 - [Node.js](https://nodejs.org/) 20+
 - [Docker](https://docker.com/) (optional, for local Stellar node)
 
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/your-org/propfi.git
-cd propfi
+git clone https://github.com/soropropfi/soroban-propfi.git
+cd soroban-propfi
 ```
 
 ### 2. Install Rust target
@@ -408,7 +426,9 @@ rustup target add wasm32-unknown-unknown
 ### 3. Build all contracts
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release
+cargo build --workspace --target wasm32-unknown-unknown --release --exclude propfi-integration-tests
+# Or simply:
+make build
 ```
 
 Or build a specific contract:
@@ -464,16 +484,28 @@ cd frontend && npm install && npm run dev
 
 ## Running Tests
 
-### Unit tests (per contract)
+### Run all tests across the repository
+
+```bash
+make test
+```
+
+This runs contract unit tests, integration tests, the TypeScript SDK test suite, and the event indexer test suite.
+
+### Smart contract unit tests
 
 ```bash
 cargo test -p propfi-property-registry
 cargo test -p propfi-fraction-vault
 cargo test -p propfi-mortgage-pool
-# ... etc
+cargo test -p propfi-rent-distributor
+cargo test -p propfi-payment-bridge
+cargo test -p propfi-oracle-adapter
+cargo test -p propfi-compliance-registry
+cargo test -p propfi-governance
 ```
 
-### All contracts
+### All contracts workspace
 
 ```bash
 cargo test --workspace
@@ -486,6 +518,16 @@ cargo test -p propfi-integration-tests
 ```
 
 Integration tests deploy all contracts to a local environment and run full protocol flows end-to-end.
+
+### SDK & Indexer tests
+
+```bash
+# TypeScript SDK
+cd sdk && npm test
+
+# Event Indexer
+cd indexer && npm test
+```
 
 ### Coverage report
 
@@ -546,10 +588,15 @@ import { createPropFi } from "@propfi/sdk";
 
 const propfi = createPropFi({
   rpcUrl: "https://soroban-testnet.stellar.org",
+  networkPassphrase: "Test SDF Network ; September 2015",
   complianceRegistryId: "C...",
   propertyRegistryId: "C...",
   fractionVaultId: "C...",
   mortgagePoolId: "C...",
+  oracleAdapterId: "C...",
+  rentDistributorId: "C...",
+  paymentBridgeId: "C...",
+  governanceId: "C...",
 });
 
 // Read a property
@@ -557,6 +604,9 @@ const property = await propfi.propertyRegistry.getProperty(1);
 
 // Check compliance
 const ok = await propfi.complianceRegistry.isCompliant("G...", "US");
+
+// Check available fractions
+const available = await propfi.fractionVault.availableFractions(1);
 
 // Submit a transaction with Freighter
 const signer = {
